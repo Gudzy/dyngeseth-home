@@ -21,10 +21,10 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - name: Install and Build
-        run: |
-          npm ci
-          npm run build
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
       - name: Deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
