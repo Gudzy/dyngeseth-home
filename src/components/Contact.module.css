@@ -1,0 +1,76 @@
+.section {
+  padding: 6rem 2.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+
+.topLine {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.line {
+  display: block;
+  width: 30px;
+  height: 1.5px;
+  background: var(--accent);
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 2.2rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.75rem;
+}
+
+.text {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+  line-height: 1.7;
+}
+
+.emailLink {
+  display: inline-block;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--fg);
+  border-bottom: 1.5px solid var(--accent);
+  padding-bottom: 2px;
+  margin-bottom: 2.5rem;
+  transition: color 0.15s;
+}
+
+.emailLink:hover { color: var(--accent); }
+
+.socials {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.socials a {
+  font-size: 0.83rem;
+  color: var(--muted);
+  transition: color 0.15s;
+  border-bottom: 1px solid transparent;
+}
+
+.socials a:hover {
+  color: var(--fg);
+  border-bottom-color: var(--border);
+}

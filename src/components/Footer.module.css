@@ -1,0 +1,14 @@
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 2rem 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.built {
+  font-size: 0.72rem;
+  opacity: 0.6;
+}
