@@ -1,4 +1,4 @@
-import styles from './Contact.module.css'
+import styles from "./Contact.module.css";
 
 export default function Contact() {
   return (
@@ -12,14 +12,26 @@ export default function Contact() {
         <p className={styles.text}>
           Have a project in mind, or just want to connect?
         </p>
-        <a className={styles.emailLink} href="mailto:hello@dyngeseth.no">
-          hello@dyngeseth.no ↗
+        <a className={styles.emailLink} href="mailto:gustdyn@gmail.com">
+          gustdyn@gmail.com ↗
         </a>
         <div className={styles.socials}>
-          <a href="https://github.com/gustavdyngeseth" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="https://linkedin.com/in/gustavdyngeseth" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a
+            href="https://github.com/gudzy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
+          <a
+            href="https://linkedin.com/in/gustavdyngeseth"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            LinkedIn
+          </a>
         </div>
       </div>
     </section>
-  )
+  );
 }
