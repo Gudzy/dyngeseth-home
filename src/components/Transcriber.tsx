@@ -3,8 +3,8 @@ import styles from "./Transcriber.module.css";
 
 const LANGUAGES: { value: Language; label: string }[] = [
   { value: "auto", label: "Auto-detect" },
-  { value: "en", label: "English" },
-  { value: "no", label: "Norsk" },
+  { value: "en",   label: "English" },
+  { value: "no",   label: "Norsk" },
 ];
 
 export default function Transcriber() {
@@ -14,23 +14,25 @@ export default function Transcriber() {
     interim,
     language,
     setLanguage,
-    lyttAvailable,
+    engine,
     isProcessing,
     error,
-    browserSupported,
+    canTranscribe,
     toggle,
     deleteTranscript,
     clearAll,
   } = useTranscriber();
 
-  const canUse = lyttAvailable || browserSupported;
-  const engineLabel = lyttAvailable ? "lytt · Whisper" : "Browser Speech API";
+  const engineLabel =
+    engine === "lytt"    ? "lytt · Whisper"     :
+    engine === "cloud"   ? "Cloud · Whisper"    :
+    engine === "browser" ? "Browser Speech API" :
+    "checking…";
+
   const engineStatus =
-    lyttAvailable === null
-      ? "checking…"
-      : lyttAvailable
-        ? "connected"
-        : "fallback";
+    engine === null                           ? "checking…" :
+    engine === "lytt" || engine === "cloud"   ? "connected" :
+    "fallback";
 
   return (
     <section id="transcribe" className={styles.section}>
@@ -48,14 +50,14 @@ export default function Transcriber() {
           </div>
         </div>
 
-        {!canUse && (
+        {!canTranscribe && (
           <p className={styles.unsupported}>
-            No transcription engine available. Run <code>lytt serve</code>{" "}
-            locally, or use Chrome/Edge for browser fallback.
+            No transcription engine available. Use Chrome or Edge for browser
+            fallback.
           </p>
         )}
 
-        {canUse && (
+        {canTranscribe && (
           <>
             <div className={styles.controls}>
               <div className={styles.langSelect}>
@@ -80,12 +82,7 @@ export default function Transcriber() {
                 {isProcessing ? (
                   <span className={styles.spinner} />
                 ) : listening ? (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="6" y="6" width="12" height="12" rx="2" />
                   </svg>
                 ) : (
@@ -138,7 +135,7 @@ export default function Transcriber() {
                         className={styles.entrySource}
                         data-source={t.source}
                       >
-                        {t.source === "lytt" ? "✦ lytt" : "◎ browser"}
+                        {t.source === "browser" ? "◎ browser" : "✦ whisper"}
                       </span>
                       <time className={styles.entryTime}>
                         {new Date(t.createdAt).toLocaleString()}
@@ -156,9 +153,10 @@ export default function Transcriber() {
               </div>
             )}
 
-            {!lyttAvailable && (
+            {engine === "browser" && (
               <p className={styles.lyttHint}>
-                For higher-quality transcription, install{" "}
+                Using browser speech recognition. For higher-quality
+                transcription, install{" "}
                 <a
                   href="https://github.com/Smebbs/lytt"
                   target="_blank"

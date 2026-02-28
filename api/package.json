@@ -1,0 +1,21 @@
+{
+  "name": "dyngeseth-api",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/src/functions/*.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "prestart": "npm run build",
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.0",
+    "openai": "^4.52.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "azure-functions-core-tools": "^4.0.0",
+    "typescript": "^5.4.0"
+  }
+}
