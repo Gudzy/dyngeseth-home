@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions'
 import { transcribeAudio, type WhisperLanguage } from '../lib/whisper'
 import { validateAudioSize, ValidationError } from '../lib/validate'
+import { isRateLimited } from '../lib/rateLimit'
 
 /**
  * Maps the language string sent by the frontend to an ISO 639-1 code
@@ -28,6 +29,11 @@ async function transcribeHandler(
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+    if (isRateLimited(ip)) {
+      return { status: 429, jsonBody: { error: 'Too many requests. Please wait a minute.' } }
+    }
+
     const formData = await request.formData()
 
     const filePart = formData.get('file')
