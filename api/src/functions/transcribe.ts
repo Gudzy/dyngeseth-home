@@ -61,12 +61,13 @@ async function transcribeHandler(
       return { status: 400, jsonBody: { error: err.message } }
     }
 
-    // Log full error server-side, never expose internal details to the client
-    // (guards against leaking API key status, quota errors, etc.)
+    // Log full error server-side
     context.error('Transcription error:', err)
+    // TODO: remove `detail` before shipping — diagnostic only
+    const detail = err instanceof Error ? `${err.constructor.name}: ${err.message}` : String(err)
     return {
       status: 500,
-      jsonBody: { error: 'Transcription failed. Please try again.' },
+      jsonBody: { error: 'Transcription failed. Please try again.', detail },
     }
   }
 }
