@@ -17,7 +17,6 @@ export default function Hero() {
           <span>React</span>
           <span>TypeScript</span>
           <span>Azure</span>
-          <span>Python</span>
         </div>
         <div className={styles.scrollHint}>↓</div>
       </div>
