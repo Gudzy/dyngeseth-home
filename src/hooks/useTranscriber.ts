@@ -234,7 +234,7 @@ export function useTranscriber() {
       // --- Chunk recorder ---
       function startChunk() {
         if (!continuousRef.current || !streamRef.current) return
-        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
+        const recorder = new MediaRecorder(streamRef.current!, mimeType ? { mimeType } : {})
         chunksRef.current = []
         chunkStartTimeRef.current = Date.now()
 
