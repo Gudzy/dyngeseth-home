@@ -118,6 +118,7 @@ export function useTranscriber() {
   const silenceTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
   const silenceIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
   const chunkStartTimeRef   = useRef(0)
+  const speechDetectedRef   = useRef(false)
 
   // Tier detection: lytt-bridge (local) → cloud function → browser Speech API.
   useEffect(() => {
@@ -222,7 +223,8 @@ export function useTranscriber() {
       audioCtx.createMediaStreamSource(stream).connect(analyser)
       const freqData = new Uint8Array(analyser.frequencyBinCount)
 
-      const SILENCE_THRESHOLD = 10   // avg frequency amplitude below this = silence
+      const SILENCE_THRESHOLD = 10   // avg amplitude below this = silence
+      const SPEECH_THRESHOLD  = 20   // avg amplitude must reach this at least once per chunk
       const SILENCE_DELAY_MS  = 1500 // pause duration before auto-sending the chunk
       const WARMUP_MS         = 500  // ignore silence in the first 500 ms of each chunk
 
@@ -233,6 +235,9 @@ export function useTranscriber() {
 
         analyser.getByteFrequencyData(freqData)
         const avg = freqData.reduce((s, v) => s + v, 0) / freqData.length
+
+        // Mark speech as present the first time the level clears the speech threshold
+        if (avg >= SPEECH_THRESHOLD) speechDetectedRef.current = true
 
         if (avg < SILENCE_THRESHOLD) {
           if (silenceTimerRef.current === null) {
@@ -257,6 +262,7 @@ export function useTranscriber() {
         const recorder = new MediaRecorder(streamRef.current!, mimeType ? { mimeType } : {})
         chunksRef.current = []
         chunkStartTimeRef.current = Date.now()
+        speechDetectedRef.current = false
 
         recorder.ondataavailable = (e) => {
           if (e.data.size > 0) chunksRef.current.push(e.data)
@@ -265,8 +271,8 @@ export function useTranscriber() {
         recorder.onstop = async () => {
           const actualType = recorder.mimeType || mimeType || 'audio/webm'
           const blob = new Blob(chunksRef.current, { type: actualType })
-          // Skip blobs that are too small to contain real speech
-          if (blob.size > 500) {
+          // Skip blobs with no detected speech (prevents Whisper hallucinations on noise)
+          if (blob.size > 500 && speechDetectedRef.current) {
             setIsProcessing(true)
             setError(null)
             try {
