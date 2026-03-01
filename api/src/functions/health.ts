@@ -10,7 +10,7 @@ async function healthHandler(
   if (!process.env['OPENAI_API_KEY']) {
     return { status: 503, jsonBody: { ok: false, error: 'Service not configured.' } }
   }
-  return { status: 200, jsonBody: { ok: true } }
+  return { status: 200, jsonBody: { ok: true, node: process.version } }
 }
 
 app.http('health', {

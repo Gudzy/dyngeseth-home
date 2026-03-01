@@ -1,4 +1,5 @@
 import OpenAI, { toFile } from 'openai'
+import nodeFetch from 'node-fetch'
 
 const WHISPER_MODEL = 'whisper-1' as const
 
@@ -17,7 +18,11 @@ function getClient(): OpenAI {
           'Add it to Azure App Settings (production) or local.settings.json (local dev).',
       )
     }
-    _client = new OpenAI({ apiKey })
+    // Use node-fetch instead of the Node.js native fetch (undici) which can
+    // fail to establish connections in Azure SWA managed function sandboxes.
+    // node-fetch uses the Node.js http/https modules directly and is more
+    // reliable in containerised Azure environments.
+    _client = new OpenAI({ apiKey, fetch: nodeFetch as unknown as typeof globalThis.fetch })
   }
   return _client
 }
