@@ -5,16 +5,15 @@ export interface Transcript {
   text: string
   language: string
   createdAt: string
-  source: 'lytt' | 'cloud' | 'browser'
+  source: 'cloud' | 'browser'
 }
 
 export type Language = 'en' | 'no' | 'auto'
 
 /** Which transcription engine is active. `null` = still detecting. */
-export type Engine = 'lytt' | 'cloud' | 'browser' | null
+export type Engine = 'cloud' | 'browser' | null
 
 const STORAGE_KEY = 'dyngeseth:transcripts'
-const LYTT_BRIDGE = 'http://localhost:3000'
 const CLOUD_API   = '/api/transcribe'
 
 function loadTranscripts(): Transcript[] {
@@ -33,15 +32,6 @@ declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition
     webkitSpeechRecognition: typeof SpeechRecognition
-  }
-}
-
-async function checkLyttBridge(): Promise<boolean> {
-  try {
-    const res = await fetch(`${LYTT_BRIDGE}/health`, { signal: AbortSignal.timeout(1500) })
-    return res.ok
-  } catch {
-    return false
   }
 }
 
@@ -76,21 +66,14 @@ function mimeToExt(mimeType: string): string {
   return 'webm'
 }
 
-async function transcribeWithApi(
-  url: string,
-  blob: Blob,
-  language: Language,
-): Promise<string> {
+async function transcribeWithCloud(blob: Blob, language: Language): Promise<string> {
   const ext      = mimeToExt(blob.type)
   const formData = new FormData()
-  // Name the file with the correct extension so the server and OpenAI can
-  // identify the container format from the filename when the MIME type alone
-  // isn't enough (e.g. some proxies strip Content-Type from multipart parts).
   formData.append('file', blob, `recording.${ext}`)
   if (language !== 'auto') {
     formData.append('language', language === 'no' ? 'norwegian' : 'english')
   }
-  const res = await fetch(url, { method: 'POST', body: formData })
+  const res = await fetch(CLOUD_API, { method: 'POST', body: formData })
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error?: string }
     throw new Error(body.error ?? `HTTP ${res.status}`)
@@ -111,7 +94,7 @@ export function useTranscriber() {
   const recognitionRef      = useRef<SpeechRecognition | null>(null)
   const mediaRecorderRef    = useRef<MediaRecorder | null>(null)
   const chunksRef           = useRef<Blob[]>([])
-  // Continuous Whisper mode (cloud / lytt)
+  // Continuous Whisper mode (cloud)
   const streamRef           = useRef<MediaStream | null>(null)
   const continuousRef       = useRef(false)
   const audioCtxRef         = useRef<AudioContext | null>(null)
@@ -120,11 +103,10 @@ export function useTranscriber() {
   const chunkStartTimeRef   = useRef(0)
   const speechDetectedRef   = useRef(false)
 
-  // Tier detection: lytt-bridge (local) → cloud function → browser Speech API.
+  // Engine detection: cloud function → browser Speech API.
   useEffect(() => {
     async function detectEngine() {
-      if (await checkLyttBridge()) { setEngine('lytt');    return }
-      if (await checkCloudApi())   { setEngine('cloud');   return }
+      if (await checkCloudApi()) { setEngine('cloud');   return }
       setEngine('browser')
     }
     detectEngine()
@@ -203,124 +185,121 @@ export function useTranscriber() {
   // Continuous Whisper recording: records a chunk, sends it when the user pauses
   // (silence detected for SILENCE_DELAY_MS), then immediately starts the next chunk.
   // The microphone stream stays open the whole time — only the MediaRecorder cycles.
-  const startWhisperEngine = useCallback(
-    async (apiUrl: string, source: 'lytt' | 'cloud') => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
-      if (!stream) {
-        setError('Could not access microphone.')
-        return
-      }
-      streamRef.current  = stream
-      continuousRef.current = true
+  const startCloudEngine = useCallback(async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
+    if (!stream) {
+      setError('Could not access microphone.')
+      return
+    }
+    streamRef.current  = stream
+    continuousRef.current = true
 
-      const mimeType = bestSupportedMimeType()
+    const mimeType = bestSupportedMimeType()
 
-      // --- Silence detection ---
-      const audioCtx = new AudioContext()
-      audioCtxRef.current = audioCtx
-      const analyser = audioCtx.createAnalyser()
-      analyser.fftSize = 1024
-      audioCtx.createMediaStreamSource(stream).connect(analyser)
-      const freqData = new Uint8Array(analyser.frequencyBinCount)
+    // --- Silence detection ---
+    const audioCtx = new AudioContext()
+    audioCtxRef.current = audioCtx
+    const analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 1024
+    audioCtx.createMediaStreamSource(stream).connect(analyser)
+    const freqData = new Uint8Array(analyser.frequencyBinCount)
 
-      const SILENCE_THRESHOLD = 10   // avg amplitude below this = silence
-      const SPEECH_THRESHOLD  = 20   // avg amplitude must reach this at least once per chunk
-      const SILENCE_DELAY_MS  = 1500 // pause duration before auto-sending the chunk
-      const WARMUP_MS         = 500  // ignore silence in the first 500 ms of each chunk
+    const SILENCE_THRESHOLD = 10   // avg amplitude below this = silence
+    const SPEECH_THRESHOLD  = 20   // avg amplitude must reach this at least once per chunk
+    const SILENCE_DELAY_MS  = 1500 // pause duration before auto-sending the chunk
+    const WARMUP_MS         = 500  // ignore silence in the first 500 ms of each chunk
 
-      silenceIntervalRef.current = setInterval(() => {
-        if (!continuousRef.current) return
-        // Give the recorder a moment to settle before watching for silence
-        if (Date.now() - chunkStartTimeRef.current < WARMUP_MS) return
+    silenceIntervalRef.current = setInterval(() => {
+      if (!continuousRef.current) return
+      // Give the recorder a moment to settle before watching for silence
+      if (Date.now() - chunkStartTimeRef.current < WARMUP_MS) return
 
-        analyser.getByteFrequencyData(freqData)
-        const avg = freqData.reduce((s, v) => s + v, 0) / freqData.length
+      analyser.getByteFrequencyData(freqData)
+      const avg = freqData.reduce((s, v) => s + v, 0) / freqData.length
 
-        // Mark speech as present the first time the level clears the speech threshold
-        if (avg >= SPEECH_THRESHOLD) speechDetectedRef.current = true
+      // Mark speech as present the first time the level clears the speech threshold
+      if (avg >= SPEECH_THRESHOLD) speechDetectedRef.current = true
 
-        if (avg < SILENCE_THRESHOLD) {
-          if (silenceTimerRef.current === null) {
-            silenceTimerRef.current = setTimeout(() => {
-              silenceTimerRef.current = null
-              if (mediaRecorderRef.current?.state === 'recording') {
-                mediaRecorderRef.current.stop()
-              }
-            }, SILENCE_DELAY_MS)
-          }
-        } else {
-          if (silenceTimerRef.current !== null) {
-            clearTimeout(silenceTimerRef.current)
+      if (avg < SILENCE_THRESHOLD) {
+        if (silenceTimerRef.current === null) {
+          silenceTimerRef.current = setTimeout(() => {
             silenceTimerRef.current = null
-          }
-        }
-      }, 100)
-
-      // --- Chunk recorder ---
-      function startChunk() {
-        if (!continuousRef.current || !streamRef.current) return
-        const recorder = new MediaRecorder(streamRef.current!, mimeType ? { mimeType } : {})
-        chunksRef.current = []
-        chunkStartTimeRef.current = Date.now()
-        speechDetectedRef.current = false
-
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunksRef.current.push(e.data)
-        }
-
-        recorder.onstop = async () => {
-          const actualType = recorder.mimeType || mimeType || 'audio/webm'
-          const blob = new Blob(chunksRef.current, { type: actualType })
-          // Skip blobs with no detected speech (prevents Whisper hallucinations on noise)
-          if (blob.size > 500 && speechDetectedRef.current) {
-            setIsProcessing(true)
-            setError(null)
-            try {
-              const text = await transcribeWithApi(apiUrl, blob, language)
-              if (text.trim()) {
-                const entry: Transcript = {
-                  id:        crypto.randomUUID(),
-                  text:      text.trim(),
-                  language,
-                  createdAt: new Date().toISOString(),
-                  source,
-                }
-                setTranscripts((prev) => {
-                  const updated = [entry, ...prev]
-                  saveTranscripts(updated)
-                  return updated
-                })
-              }
-            } catch (err) {
-              setError(err instanceof Error ? err.message : 'Transcription failed.')
-            } finally {
-              setIsProcessing(false)
+            if (mediaRecorderRef.current?.state === 'recording') {
+              mediaRecorderRef.current.stop()
             }
-          }
-          // Continue loop or clean up
-          if (continuousRef.current) {
-            startChunk()
-          } else {
-            const s = streamRef.current
-            streamRef.current = null
-            s?.getTracks().forEach((t) => t.stop())
-          }
+          }, SILENCE_DELAY_MS)
         }
+      } else {
+        if (silenceTimerRef.current !== null) {
+          clearTimeout(silenceTimerRef.current)
+          silenceTimerRef.current = null
+        }
+      }
+    }, 100)
 
-        recorder.start()
-        mediaRecorderRef.current = recorder
+    // --- Chunk recorder ---
+    function startChunk() {
+      if (!continuousRef.current || !streamRef.current) return
+      const recorder = new MediaRecorder(streamRef.current!, mimeType ? { mimeType } : {})
+      chunksRef.current = []
+      chunkStartTimeRef.current = Date.now()
+      speechDetectedRef.current = false
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
       }
 
-      startChunk()
-      setListening(true)
-      setError(null)
-    },
-    [language],
-  )
+      recorder.onstop = async () => {
+        const actualType = recorder.mimeType || mimeType || 'audio/webm'
+        const blob = new Blob(chunksRef.current, { type: actualType })
+        // Skip blobs with no detected speech (prevents Whisper hallucinations on noise)
+        if (blob.size > 500 && speechDetectedRef.current) {
+          setIsProcessing(true)
+          setError(null)
+          try {
+            const text = await transcribeWithCloud(blob, language)
+            if (text.trim()) {
+              const entry: Transcript = {
+                id:        crypto.randomUUID(),
+                text:      text.trim(),
+                language,
+                createdAt: new Date().toISOString(),
+                source:    'cloud',
+              }
+              setTranscripts((prev) => {
+                const updated = [entry, ...prev]
+                saveTranscripts(updated)
+                return updated
+              })
+            }
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Transcription failed.')
+          } finally {
+            setIsProcessing(false)
+          }
+        }
+        // Continue loop or clean up
+        if (continuousRef.current) {
+          startChunk()
+        } else {
+          const s = streamRef.current
+          streamRef.current = null
+          s?.getTracks().forEach((t) => t.stop())
+        }
+      }
+
+      recorder.start()
+      mediaRecorderRef.current = recorder
+    }
+
+    startChunk()
+    setListening(true)
+    setError(null)
+  }, [language])
 
   const toggle = useCallback(() => {
     if (listening) {
-      if (engine === 'lytt' || engine === 'cloud') {
+      if (engine === 'cloud') {
         // Stop the continuous recording loop
         continuousRef.current = false
         if (silenceTimerRef.current !== null) {
@@ -349,10 +328,8 @@ export function useTranscriber() {
         setListening(false)
       }
     } else {
-      if (engine === 'lytt') {
-        startWhisperEngine(`${LYTT_BRIDGE}/transcribe`, 'lytt')
-      } else if (engine === 'cloud') {
-        startWhisperEngine(CLOUD_API, 'cloud')
+      if (engine === 'cloud') {
+        startCloudEngine()
       } else {
         recognitionRef.current?.start()
         setListening(true)
@@ -360,7 +337,7 @@ export function useTranscriber() {
         setInterim('')
       }
     }
-  }, [listening, engine, startWhisperEngine])
+  }, [listening, engine, startCloudEngine])
 
   const deleteTranscript = useCallback((id: string) => {
     setTranscripts((prev) => {
@@ -380,7 +357,7 @@ export function useTranscriber() {
     (window.SpeechRecognition || window.webkitSpeechRecognition)
   )
 
-  const canTranscribe = engine === 'lytt' || engine === 'cloud' || browserSupported
+  const canTranscribe = engine === 'cloud' || browserSupported
 
   return {
     transcripts,

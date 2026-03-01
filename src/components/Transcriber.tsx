@@ -24,14 +24,13 @@ export default function Transcriber() {
   } = useTranscriber();
 
   const engineLabel =
-    engine === "lytt"    ? "lytt · Whisper"     :
     engine === "cloud"   ? "Cloud · Whisper"    :
     engine === "browser" ? "Browser Speech API" :
     "checking…";
 
   const engineStatus =
-    engine === null                           ? "checking…" :
-    engine === "lytt" || engine === "cloud"   ? "connected" :
+    engine === null      ? "checking…" :
+    engine === "cloud"   ? "connected" :
     "fallback";
 
   return (
@@ -156,16 +155,7 @@ export default function Transcriber() {
             {engine === "browser" && (
               <p className={styles.lyttHint}>
                 Cloud transcription is unavailable — using browser speech
-                recognition as fallback. For OpenAI Whisper quality locally,
-                install{" "}
-                <a
-                  href="https://github.com/Smebbs/lytt"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  lytt
-                </a>{" "}
-                and run <code>lytt serve</code>.
+                recognition as fallback.
               </p>
             )}
           </>
