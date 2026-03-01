@@ -1,24 +1,24 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions'
-import net from 'net'
-import dns from 'dns/promises'
+import https from 'https'
 
-async function tcpTest(host: string, port: number, timeoutMs: number): Promise<{ ok: boolean; ms?: number; error?: string }> {
+/** Make a raw HTTPS GET and return the HTTP status code (or an error string). */
+async function httpsGet(url: string, headers: Record<string, string>, timeoutMs: number): Promise<{ status?: number; error?: string; ms: number }> {
+  const start = Date.now()
   return new Promise((resolve) => {
-    const start = Date.now()
-    const socket = net.createConnection({ host, port })
-    const timer = setTimeout(() => {
-      socket.destroy()
-      resolve({ ok: false, error: `timeout after ${timeoutMs}ms` })
-    }, timeoutMs)
-    socket.on('connect', () => {
-      clearTimeout(timer)
-      socket.destroy()
-      resolve({ ok: true, ms: Date.now() - start })
+    const parsed = new URL(url)
+    const req = https.request({
+      hostname: parsed.hostname,
+      path: parsed.pathname,
+      method: 'GET',
+      headers,
+      timeout: timeoutMs,
+    }, (res) => {
+      res.resume() // drain so socket can be reused
+      resolve({ status: res.statusCode, ms: Date.now() - start })
     })
-    socket.on('error', (e) => {
-      clearTimeout(timer)
-      resolve({ ok: false, error: e.message })
-    })
+    req.on('timeout', () => { req.destroy(); resolve({ error: `timeout after ${timeoutMs}ms`, ms: Date.now() - start }) })
+    req.on('error', (e) => resolve({ error: e.message, ms: Date.now() - start }))
+    req.end()
   })
 }
 
@@ -26,23 +26,23 @@ async function healthHandler(
   _req: HttpRequest,
   _ctx: InvocationContext,
 ): Promise<HttpResponseInit> {
-  if (!process.env['OPENAI_API_KEY']) {
+  const apiKey = process.env['OPENAI_API_KEY']
+  if (!apiKey) {
     return { status: 503, jsonBody: { ok: false, error: 'Service not configured.' } }
   }
 
-  // Diagnostic: test raw TCP + DNS connectivity to api.openai.com
-  const [tcp, dnsResult] = await Promise.allSettled([
-    tcpTest('api.openai.com', 443, 8000),
-    dns.lookup('api.openai.com'),
-  ])
+  // Diagnostic: hit the OpenAI models list endpoint — quick, read-only, requires a valid key+billing.
+  // 200 → key + billing ok.  401 → bad key.  429 → no credits / rate limited.
+  const openai = await httpsGet(
+    'https://api.openai.com/v1/models',
+    { Authorization: `Bearer ${apiKey}` },
+    8000,
+  )
 
-  const tcpResult = tcp.status === 'fulfilled' ? tcp.value : { ok: false, error: String(tcp.reason) }
-  const dnsAddr  = dnsResult.status === 'fulfilled' ? dnsResult.value.address : `error: ${dnsResult.reason}`
-
-  const ok = tcpResult.ok
+  const ok = openai.status === 200
   return {
     status: ok ? 200 : 503,
-    jsonBody: { ok, node: process.version, tcp: tcpResult, dns: dnsAddr },
+    jsonBody: { ok, node: process.version, openai },
   }
 }
 
