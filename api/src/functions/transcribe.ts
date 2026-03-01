@@ -5,7 +5,6 @@ import { validateAudioSize, ValidationError } from '../lib/validate'
 /**
  * Maps the language string sent by the frontend to an ISO 639-1 code
  * accepted by Whisper, or null to let Whisper auto-detect.
- * Mirrors normalize_language() in lytt-bridge/src/routes/transcribe.rs.
  */
 function normalizeLanguage(raw: string | null): WhisperLanguage {
   switch (raw?.toLowerCase().trim()) {

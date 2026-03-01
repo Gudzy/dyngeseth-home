@@ -195,19 +195,6 @@
   color: var(--muted);
 }
 
-.lyttHint a {
-  color: var(--accent);
-  border-bottom: 1px solid var(--accent-light);
-}
-
-.lyttHint code {
-  font-family: monospace;
-  background: var(--bg);
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  font-size: 0.75rem;
-}
 
 .list {
   border: 1px solid var(--border);
@@ -266,7 +253,6 @@
   letter-spacing: 0.04em;
 }
 
-.entrySource[data-source="lytt"]    { background: var(--accent-light); color: var(--accent); }
 .entrySource[data-source="cloud"]   { background: var(--accent-light); color: var(--accent); }
 .entrySource[data-source="browser"] { background: var(--bg2); color: var(--muted); }
 

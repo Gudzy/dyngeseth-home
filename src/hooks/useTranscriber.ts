@@ -28,13 +28,6 @@ function saveTranscripts(items: Transcript[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
 }
 
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition
-    webkitSpeechRecognition: typeof SpeechRecognition
-  }
-}
-
 async function checkCloudApi(): Promise<boolean> {
   try {
     const res = await fetch('/api/health', { signal: AbortSignal.timeout(3000) })
