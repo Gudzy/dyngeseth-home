@@ -155,8 +155,9 @@ export default function Transcriber() {
 
             {engine === "browser" && (
               <p className={styles.lyttHint}>
-                Using browser speech recognition. For higher-quality
-                transcription, install{" "}
+                Cloud transcription is unavailable — using browser speech
+                recognition as fallback. For OpenAI Whisper quality locally,
+                install{" "}
                 <a
                   href="https://github.com/Smebbs/lytt"
                   target="_blank"
@@ -164,7 +165,7 @@ export default function Transcriber() {
                 >
                   lytt
                 </a>{" "}
-                and run <code>lytt serve</code> locally.
+                and run <code>lytt serve</code>.
               </p>
             )}
           </>
