@@ -129,6 +129,30 @@ export function useTranscriber() {
     detectEngine()
   }, [])
 
+  // Cleanup: stop all recording resources when the component unmounts.
+  useEffect(() => {
+    return () => {
+      continuousRef.current = false
+      if (silenceTimerRef.current !== null) {
+        clearTimeout(silenceTimerRef.current)
+        silenceTimerRef.current = null
+      }
+      if (silenceIntervalRef.current !== null) {
+        clearInterval(silenceIntervalRef.current)
+        silenceIntervalRef.current = null
+      }
+      audioCtxRef.current?.close().catch(() => {})
+      audioCtxRef.current = null
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop() // onstop will release the stream
+      } else {
+        streamRef.current?.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+      }
+      recognitionRef.current?.stop()
+    }
+  }, [])
+
   // Browser SpeechRecognition — only used when engine === 'browser'.
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -137,6 +161,8 @@ export function useTranscriber() {
     const recognition = new SpeechRecognition()
     recognition.continuous    = true
     recognition.interimResults = true
+    const langMap: Record<Language, string> = { en: 'en-US', no: 'nb-NO', auto: 'en-US' }
+    recognition.lang = langMap[language]
 
     recognition.onresult = (event) => {
       let interimText = ''
@@ -171,12 +197,6 @@ export function useTranscriber() {
     }
 
     recognitionRef.current = recognition
-  }, [language])
-
-  useEffect(() => {
-    if (!recognitionRef.current) return
-    const langMap: Record<Language, string> = { en: 'en-US', no: 'nb-NO', auto: 'en-US' }
-    recognitionRef.current.lang = langMap[language]
   }, [language])
 
   // Continuous Whisper recording: records a chunk, sends it when the user pauses

@@ -267,6 +267,7 @@
 }
 
 .entrySource[data-source="lytt"]    { background: var(--accent-light); color: var(--accent); }
+.entrySource[data-source="cloud"]   { background: var(--accent-light); color: var(--accent); }
 .entrySource[data-source="browser"] { background: var(--bg2); color: var(--muted); }
 
 .entryTime {
