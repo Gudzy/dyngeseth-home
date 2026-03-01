@@ -2,11 +2,9 @@
   "name": "dyngeseth-api",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/src/functions/*.js",
+  "main": "dist/functions/*.js",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc --watch",
-    "prestart": "npm run build",
+    "build": "node build.mjs",
     "start": "func start"
   },
   "dependencies": {
@@ -15,7 +13,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "azure-functions-core-tools": "^4.0.0",
+    "esbuild": "^0.25.0",
     "typescript": "^5.4.0"
   }
 }
