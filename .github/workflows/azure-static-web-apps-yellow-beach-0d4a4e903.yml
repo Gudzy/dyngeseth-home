@@ -21,10 +21,16 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - name: Install
+      - name: Install frontend dependencies
         run: npm ci
-      - name: Build
+      - name: Build frontend
         run: npm run build
+      - name: Build API
+        working-directory: api
+        run: |
+          npm ci
+          npm run build
+          npm prune --omit=dev
       - name: Deploy
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -35,6 +41,7 @@ jobs:
           output_location: "dist"
           api_location: "api"
           skip_app_build: true
+          skip_api_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
