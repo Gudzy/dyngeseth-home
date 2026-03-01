@@ -142,7 +142,7 @@ export default function Transcriber() {
                       <button
                         className={styles.deleteBtn}
                         onClick={() => deleteTranscript(t.id)}
-                        aria-label="Delete"
+                        aria-label="Delete transcript"
                       >
                         ×
                       </button>

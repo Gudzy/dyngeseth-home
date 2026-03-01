@@ -173,6 +173,12 @@ export function useTranscriber() {
     }
 
     recognitionRef.current = recognition
+
+    return () => {
+      recognition.onresult = null
+      recognition.onend = null
+      recognition.onerror = null
+    }
   }, [language])
 
   // Continuous Whisper recording: records a chunk, sends it when the user pauses
@@ -184,7 +190,7 @@ export function useTranscriber() {
       setError('Could not access microphone.')
       return
     }
-    streamRef.current  = stream
+    streamRef.current = stream
     continuousRef.current = true
 
     const mimeType = bestSupportedMimeType()
@@ -232,8 +238,9 @@ export function useTranscriber() {
 
     // --- Chunk recorder ---
     function startChunk() {
-      if (!continuousRef.current || !streamRef.current) return
-      const recorder = new MediaRecorder(streamRef.current!, mimeType ? { mimeType } : {})
+      const stream = streamRef.current
+      if (!continuousRef.current || !stream) return
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
       chunksRef.current = []
       chunkStartTimeRef.current = Date.now()
       speechDetectedRef.current = false
@@ -345,10 +352,7 @@ export function useTranscriber() {
     saveTranscripts([])
   }, [])
 
-  const browserSupported = !!(
-    typeof window !== 'undefined' &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition)
-  )
+  const browserSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 
   const canTranscribe = engine === 'cloud' || browserSupported
 
@@ -361,7 +365,6 @@ export function useTranscriber() {
     engine,
     isProcessing,
     error,
-    browserSupported,
     canTranscribe,
     toggle,
     deleteTranscript,

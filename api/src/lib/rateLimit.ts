@@ -16,12 +16,13 @@ interface Entry {
 const store = new Map<string, Entry>()
 
 // Purge expired entries once per window to prevent unbounded memory growth.
+// .unref() lets the Node.js process exit naturally without waiting for this timer.
 setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of store) {
     if (entry.resetAt <= now) store.delete(key)
   }
-}, WINDOW_MS)
+}, WINDOW_MS).unref()
 
 /**
  * Returns true if the given IP has exceeded the rate limit.
