@@ -7,6 +7,9 @@ const shared = {
   format: 'cjs',
   sourcemap: false,
   minify: false,
+  // @azure/functions-core is provided by the Azure Functions runtime host,
+  // not shipped with user code. Leave the require() call as-is.
+  external: ['@azure/functions-core'],
 }
 
 await build({
