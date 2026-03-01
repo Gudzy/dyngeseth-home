@@ -31,7 +31,11 @@ async function transcribeHandler(
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
     if (isRateLimited(ip)) {
-      return { status: 429, jsonBody: { error: 'Too many requests. Please wait a minute.' } }
+      return {
+        status: 429,
+        headers: { 'Retry-After': '60' },
+        jsonBody: { error: 'Too many requests. Please wait a minute.' },
+      }
     }
 
     const formData = await request.formData()

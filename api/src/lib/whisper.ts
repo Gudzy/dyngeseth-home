@@ -1,4 +1,5 @@
 import https from 'https'
+import { randomBytes } from 'crypto'
 
 const WHISPER_HOSTNAME = 'api.openai.com'
 const WHISPER_PATH     = '/v1/audio/transcriptions'
@@ -16,7 +17,7 @@ function buildMultipartBody(
   language: WhisperLanguage,
   mimeType: string,
 ): { body: Buffer; boundary: string } {
-  const boundary = `FormBoundary${Date.now().toString(16)}`
+  const boundary = `FormBoundary${randomBytes(16).toString('hex')}`
   const parts: Buffer[] = []
 
   function addTextField(name: string, value: string) {
