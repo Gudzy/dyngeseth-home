@@ -106,7 +106,7 @@ export default function Transcriber() {
               </button>
             </div>
 
-            {error && <p className={styles.error}>{error}</p>}
+            {error && <p className={styles.error} role="alert">{error}</p>}
 
             {interim && (
               <p className={styles.interim}>

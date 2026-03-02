@@ -68,8 +68,8 @@ async function transcribeWithCloud(blob: Blob, language: Language): Promise<stri
   }
   const res = await fetch(CLOUD_API, { method: 'POST', body: formData })
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: 'Unknown error' })) as { error?: string }
-    throw new Error(body.error ?? `HTTP ${res.status}`)
+    const body = await res.json().catch(() => null) as { error?: string } | null
+    throw new Error(body?.error ?? `HTTP ${res.status}`)
   }
   const data = await res.json() as { text: string }
   return data.text
@@ -137,7 +137,7 @@ export function useTranscriber() {
     const recognition = new SpeechRecognition()
     recognition.continuous    = true
     recognition.interimResults = true
-    const langMap: Record<Language, string> = { en: 'en-US', no: 'nb-NO', auto: 'en-US' }
+    const langMap: Record<Language, string> = { en: 'en-US', no: 'nb-NO', auto: navigator.language }
     recognition.lang = langMap[language]
 
     recognition.onresult = (event) => {
@@ -185,7 +185,9 @@ export function useTranscriber() {
   // (silence detected for SILENCE_DELAY_MS), then immediately starts the next chunk.
   // The microphone stream stays open the whole time — only the MediaRecorder cycles.
   const startCloudEngine = useCallback(async () => {
+    setIsProcessing(true)
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => null)
+    setIsProcessing(false)
     if (!stream) {
       setError('Could not access microphone.')
       return
